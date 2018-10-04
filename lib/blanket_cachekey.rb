@@ -5,7 +5,7 @@ require 'blanket_cachekey/engine'
 module BlanketCachekey
 
   class << self
-    attr_accessor :cache
+    attr_accessor :db, :select, :delete, :replace
   end
 
 
@@ -21,27 +21,24 @@ module BlanketCachekey
         self.class.invalidate_blanket_cachekey
       end
 
-
       class << self
-
-
-        def blanket_cachekey 
-          BlanketCachekey.cache.fetch(blanket_cachekey_name) do
-            "#{table_name}:#{Time.now.to_i}:#{Time.now.nsec}"
+        def blanket_cachekey
+          rows = BlanketCachekey.select.execute!(self.table_name)
+          updated_at = if rows.empty?
+            now = Time.now
+            time = "#{now.to_i}:#{now.nsec}"
+            BlanketCachekey.replace.execute!(self.table_name, time)
+            time
+          else
+            rows.first.first
           end
+
+          "#{self.table_name}:#{updated_at}"
         end
 
         def invalidate_blanket_cachekey
-          BlanketCachekey.cache.delete blanket_cachekey_name
+          BlanketCachekey.delete.execute!(self.table_name)
         end
-
-        private 
-
-        def blanket_cachekey_name
-          "blanket_cachekey:name:#{self.table_name}"
-        end
-
-
       end
 
     end
