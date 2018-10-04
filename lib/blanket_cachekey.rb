@@ -39,6 +39,39 @@ module BlanketCachekey
         def invalidate_blanket_cachekey
           BlanketCachekey.delete.execute!(self.table_name)
         end
+
+        def find(*ids)
+          key = "#{self.blanket_cachekey}|find|#{ids.inspect}"
+          Rails.cache.fetch(key) do
+            super
+          end
+        end
+
+        def find_by(arg, *args)
+          key = "#{self.blanket_cachekey}|find_by|#{arg.inspect}"
+          if cacheable_opts?(arg)
+            Rails.cache.fetch(key) do
+              super
+            end
+          else
+            super
+          end
+        end
+
+        def where(opts = :chain, *rest)
+          key = "#{self.blanket_cachekey}|where|#{opts.inspect}"
+          if cacheable_opts?(opts)
+            Rails.cache.fetch(key) do
+              super.load
+            end
+          else
+            super
+          end
+        end
+
+        def cacheable_opts?(opts)
+          opts.class == Hash && opts.values.all? { |v| v.class.in? [String, Integer, Float, NilClass, TrueClass, FalseClass] }
+        end
       end
 
     end
